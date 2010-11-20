@@ -1,0 +1,153 @@
+partitionMap <-
+function(X,Y,XTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plottrain=TRUE,...){
+
+  if(class(Y)!="factor"){
+    warning("\n converting response to a factor variable")
+    Y <- as.factor(Y)
+  }
+  if(any(table(Y)==0)){
+    warning("empty classes in training data")
+    Y <- as.factor(as.character(Y))
+  }
+  
+  n <- nrow(X)
+  if(!is.null(XTEST)) nall <- nrow(X)+nrow(XTEST) else nall <- n
+  p <- ncol(X)
+
+
+  rfall <- randomForest(X,Y,ntree=100,keep.forest=TRUE,keep.inbag=TRUE,...)
+
+  predall <- predict(rfall,newdat=if(!is.null(XTEST)) rbind(X,XTEST) else X,nodes=TRUE,predict.all=TRUE)
+  NO <- attr(predall,"nodes")
+  Z <- matrix(0,nrow=nall,ncol= sum(apply(NO,2, function(x) length(unique(x)))))
+  nc <- 0
+  for (treec in 1:rfall$ntree){
+    for (nod in unique(NO[,treec])){
+      nc <- nc+1
+      ind <- as.numeric(which(NO[,treec]==nod))
+      Z[ind,nc] <- 1
+    }
+  }
+  Z <- cbind(rep(1,nrow(Z)),Z)
+  
+  
+  if(!is.null(XTEST)) ZTEST <- Z[-(1:n),]
+  Z <- Z[1:n,]
+  q <- ncol(Z)
+  ZN <- sweep(Z,1,apply(Z,1,sum),FUN="/")
+  
+   
+
+  dias <- apply(Z,1,sum)
+  diar <- apply(Z,2,sum)
+  A2 <- sweep( sweep( Z,1,sqrt(dias),FUN="/") ,  2, sqrt(diar),FUN="/")
+  tr <- try(SAMPLES <- scale(diag(1/sqrt(dias)) %*% svd(A2,nu=1+3,nv=0)$u[,1+(1:3)]))
+  while(class(tr)=="try.error") tr <- try(SAMPLES <- scale(diag(1/sqrt(dias)) %*% svd(A2 + 0.0000000001*rnorm(1),nu=3,nv=0)$u[,1+(1:dimen)]))
+  SAMPLES <- SAMPLES[,1:dimen]
+  RULES <- sweep(  t(Z), 1, apply(t(Z),1,sum), FUN="/") %*% SAMPLES
+  SAMPLES <- sweep( Z,1,apply(Z,1,sum),FUN="/") %*% RULES
+  if(!is.null(XTEST)) SAMPLESTEST <- sweep( ZTEST,1,apply(ZTEST,1,sum),FUN="/") %*% RULES
+  
+  sdvec <- apply(SAMPLES,2,sd)
+  SAMPLES <- (SAMPLES)/max(sdvec)
+  if(!is.null(XTEST)) SAMPLESTEST <- (SAMPLESTEST)/max(sdvec)
+  RULES <- (RULES)/max(sdvec)
+  
+  
+  if(method=="pm"){
+    
+    nsimloop <- 1000
+    eps <- 0.01
+    DIST <- (outer(Y,Y,FUN="!="))
+    change <- 1
+    simloop <- 0
+    
+    nY <- length(unique(Y))
+    ZS <- matrix(0,nrow=nY,ncol=ncol(Z))
+    for (i in 1:length(unique(Y))){
+      ZS[i,] <- apply(Z[ Y==unique(Y)[i], ,drop=FALSE],2,sum)
+    }
+    ds <- diag(ZS %*% t(ZS))
+    ZS <- sweep(ZS,1,apply(ZS,1,sum),FUN="/")
+    
+    if(force){
+      SAMPLESY0 <- matrix(0,nrow=nY,ncol=dimen)
+      for (ii in 1:length(unique(Y))){
+        SAMPLESY0[ii,] <- apply( SAMPLES[ unique(Y)[ii]==Y, ,drop=FALSE],2,mean) * 2
+      }
+      eps <- 0.01
+      change <- 1
+      simloop <- 0
+      SAMPLESY <- SAMPLESY0
+      DIST <- 1-diag(nY)
+      
+      while(change > 10^(-6)){
+        simloop <- simloop+1
+        B <- SAMPLESY %*% t(SAMPLESY)
+        DCURR <- outer(diag(B),rep(1,nY)) + outer(rep(1,nY),diag(B)) -2* B
+        grad1 <- numeric(nY)
+        grad2 <- numeric(nY)
+        
+        for (i in 1:nY){
+          grad1e <- sum(DIST[i,]/pmax(eps,DCURR[i,])^2*2* (SAMPLESY[i,1] - SAMPLESY[,1]))
+          grad2e <- sum(DIST[i,]/pmax(eps,DCURR[i,])^2*2* (SAMPLESY[i,2] - SAMPLESY[,2]))
+          
+          grad01 <- (SAMPLESY0[i,1]-SAMPLESY[i,1])
+          grad02 <- (SAMPLESY0[i,2]-SAMPLESY[i,2])
+          
+          grad1[i] <- grad1e + grad01
+          grad2[i] <- grad2e + grad02
+          
+        }
+        l2 <- sqrt(sum(grad1^2)+sum(grad2^2))
+        SAMPLESY <- SAMPLESY + 1/(1+simloop/(nsimloop)) *0.1* cbind(grad1,grad2)/(0.00001+l2)
+        
+        B <- SAMPLESY %*% t(SAMPLESY)
+        DCURR <- outer(diag(B),rep(1,nY)) + outer(rep(1,nY),diag(B)) -2* B
+        
+        if(round(simloop/10)==simloop/10 ){
+          RULES <- t( sweep(ZS,2,apply(ZS,2,sum),FUN="/") ) %*% SAMPLESY
+          
+          change <- mean( (SAMPLESY0 - ZS %*% RULES )^2)/ mean( (SAMPLESY0 )^2)
+          SAMPLESY0 <- ZS %*% RULES 
+        }
+        
+      }
+      RULES <- t( sweep(ZS,2,apply(ZS,2,sum),FUN="/") ) %*% SAMPLESY
+      
+    }else{
+      
+      B <-  ZS %*% sweep( t(ZS), 1,apply(ZS,2,sum),FUN="/")
+      CENTER <- diag(nY) - outer(rep(1,nY),rep(1,nY),FUN="*")/nY
+      SAMPLESY <-  eigen(CENTER %*% B %*% CENTER)$vec[,1:max(2,min(nY-1,3)),drop=FALSE]
+      RULES <- t( sweep(ZS,2,apply(ZS,2,sum),FUN="/") ) %*% SAMPLESY
+    }
+    
+    
+    SAMPLESY <- SAMPLESY[,1:dimen]
+    RULES <- RULES[,1:dimen]
+    
+    SAMPLES <- sweep( Z,1,apply(Z,1,sum),FUN="/") %*% RULES
+    if(!is.null(XTEST)) SAMPLESTEST <- sweep( ZTEST,1,apply(ZTEST,1,sum),FUN="/") %*% RULES
+
+    sdvec <- apply(SAMPLES,2,sd)
+    SAMPLESY <- (SAMPLESY)/max(sdvec)
+    SAMPLES <- (SAMPLES)/max(sdvec)
+    if(!is.null(XTEST))SAMPLESTEST <- (SAMPLESTEST)/max(sdvec)
+    RULES <- (RULES)/max(sdvec)
+  }
+  if(plottrain){
+    
+    par(mfrow=c(1,2))
+    plot(ret$Samples,col=Y,pch=20,cex=1.5,main="Training Data",xlab="Dimension 1",ylab="Dimension 2")
+    points(ret$Rules,pch=".")
+    plot(ret$Samples,col=Y,pch=20,cex=1.5,xlab="",ylab="",type="n",axes=FALSE)
+    legend(quantile(ret$Samplestest[,1],0),quantile(ret$Samplestest[,2],1),unique(Y),col=1:length(unique(Y)),fill=1:length(unique(Y)),border=0)
+    par(mfrow=c(1,1))
+    
+  }
+  
+  ret <- if(!is.null(XTEST)) list(Samples=SAMPLES,Rules=RULES,Z=Z,Samplestest=SAMPLESTEST,Ztest=ZTEST)  else list(Samples=SAMPLES,Rules=RULES,Z=Z, rf =rfall)
+  return(ret)
+}
+
