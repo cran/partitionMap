@@ -1,21 +1,17 @@
 partitionMap <-
-function(X,Y,XTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plottrain=TRUE,...){
+function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plottrain=TRUE,addjitter=0.03,...){
 
   if(class(Y)!="factor"){
     warning("\n converting response to a factor variable")
     Y <- as.factor(Y)
   }
-  if(any(table(Y)==0)){
-    warning("empty classes in training data")
-    Y <- as.factor(as.character(Y))
-  }
-  
+    
   n <- nrow(X)
   if(!is.null(XTEST)) nall <- nrow(X)+nrow(XTEST) else nall <- n
   p <- ncol(X)
 
 
-  rfall <- randomForest(X,Y,ntree=100,keep.forest=TRUE,keep.inbag=TRUE,...)
+  rfall <- randomForest(X, as.factor(as.character(Y)) ,ntree=100,keep.forest=TRUE,keep.inbag=TRUE,...)
 
   predall <- predict(rfall,newdat=if(!is.null(XTEST)) rbind(X,XTEST) else X,nodes=TRUE,predict.all=TRUE)
   NO <- attr(predall,"nodes")
@@ -136,18 +132,24 @@ function(X,Y,XTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plottrain=TRUE,
     if(!is.null(XTEST))SAMPLESTEST <- (SAMPLESTEST)/max(sdvec)
     RULES <- (RULES)/max(sdvec)
   }
+  ret <- if(!is.null(XTEST)) list(Samples=SAMPLES,Rules=RULES,Z=Z,Samplestest=SAMPLESTEST,Ztest=ZTEST)  else list(Samples=SAMPLES,Rules=RULES,Z=Z, rf =rfall)
+
+  
   if(plottrain){
-    
-    par(mfrow=c(1,2))
-    plot(ret$Samples,col=Y,pch=20,cex=1.5,main="Training Data",xlab="Dimension 1",ylab="Dimension 2")
+    par(mfrow=c(1,2 +as.numeric(!is.null(XTEST))))
+    plot(ret$Samples + addjitter*sd(ret$Samples)*matrix(rnorm(dimen*length(Y)),ncol=dimen)   ,col=Y,pch=20,cex=1.5,main="Training Data",
+         xlab="Dimension 1",ylab="Dimension 2")
     points(ret$Rules,pch=".")
+    if(!is.null(XTEST)){
+      plot(ret$Samplestest +  addjitter*sd(ret$Samplestest)*matrix(rnorm(dimen*nrow(XTEST)),ncol=dimen) ,col=if(!is.null(YTEST)) YTEST else "darkgrey",pch=20,cex=1.5,main="Test Data", xlab="Dimension 1",ylab="Dimension 2")
+      points(ret$Rules,pch=".")
+    }
     plot(ret$Samples,col=Y,pch=20,cex=1.5,xlab="",ylab="",type="n",axes=FALSE)
-    legend(quantile(ret$Samplestest[,1],0),quantile(ret$Samplestest[,2],1),unique(Y),col=1:length(unique(Y)),fill=1:length(unique(Y)),border=0)
+    legend(quantile(ret$Samples[,1],0),quantile(ret$Samples[,2],1),unique(Y),
+           col=unique(Y),fill=unique(Y),border=0)
     par(mfrow=c(1,1))
-    
   }
   
-  ret <- if(!is.null(XTEST)) list(Samples=SAMPLES,Rules=RULES,Z=Z,Samplestest=SAMPLESTEST,Ztest=ZTEST)  else list(Samples=SAMPLES,Rules=RULES,Z=Z, rf =rfall)
   return(ret)
 }
 

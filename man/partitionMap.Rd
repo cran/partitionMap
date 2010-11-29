@@ -8,8 +8,8 @@ Partition Maps
    embed observations in low-dimensional space
 }
 \usage{
-partitionMap(X, Y, XTEST = NULL, method = "pm", dimen = 2, 
-                   force = TRUE, ntree = 100, plottrain = TRUE, ...)
+partitionMap(X, Y, XTEST = NULL, YTEST = NULL,  method = "pm", dimen = 2, 
+                   force = TRUE, ntree = 100, plottrain = TRUE, addjitter = 0.03, ...)
 }
 \arguments{
   \item{X}{
@@ -20,6 +20,10 @@ partitionMap(X, Y, XTEST = NULL, method = "pm", dimen = 2,
 }
   \item{XTEST}{
   The matrix of predictor variables for the test dataset (optional)
+}
+ \item{YTEST}{
+  Class labels of test observations, used for coloring the test embeddings in the plot.
+  If not supplied, test observations are shwon in grey (optional)
 }
   \item{method}{
   \code{pm} for "partitonMap" and \code{ha} for "Homogeneity Analysis"
@@ -36,6 +40,10 @@ partitionMap(X, Y, XTEST = NULL, method = "pm", dimen = 2,
 }
   \item{plottrain}{
   plot embedding for training data?
+}
+ \item{addjitter}{
+  amount if jitter to add to the plots to avoid overlapping observations 
+  (set \code{addjitter=0} for no jitter)
 }
   \item{...}{
    other arguments to be passed to randomForest 
@@ -88,7 +96,7 @@ Nicolai Meinshausen <meinshausen@stats.ox.ac.uk>
 
 ##---- compute Partition Map solution ----
 	pm <- partitionMap(X,Y,XTEST=XTEST,method="pm",force=TRUE,
-                                dimen=2,ntree=80,plottrain=FALSE)
+                                dimen=2,ntree=80,plottrain=TRUE)
 
 
 ##---- plot the embedded training and test samples ----
@@ -100,7 +108,7 @@ Nicolai Meinshausen <meinshausen@stats.ox.ac.uk>
                                      xlab="Dimension 1",ylab="Dimension 2")
 	points(pm$Rules,pch=".")
 	plot(pm$Samples,col=Y,pch=20,cex=1.5,xlab="",ylab="",type="n",axes=FALSE)
-	legend(quantile(pm$Samplestest[,1],0),quantile(pm$Samplestest[,2],1),unique(Y),
+	legend(quantile(pm$Samples[,1],0),quantile(pm$Samples[,2],1),unique(Y),
                               col=1:length(unique(Y)),fill=1:length(unique(Y)),border=0)
 	par(mfrow=c(1,1))
 }
