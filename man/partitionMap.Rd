@@ -9,7 +9,8 @@ Partition Maps
 }
 \usage{
 partitionMap(X, Y, XTEST = NULL, YTEST = NULL,  method = "pm", dimen = 2, 
-                   force = TRUE, ntree = 100, plottrain = TRUE, addjitter = 0.03, ...)
+                   force = TRUE, ntree = 100,
+                   plottrain = TRUE, addjitter = 0.03, ...)
 }
 \arguments{
   \item{X}{
@@ -68,11 +69,11 @@ A list with values
    \item{rf }{the trained Random Forest classifier}
 }
 \references{
-   Nicolai Meinshausen (2010)
+   Nicolai Meinshausen (2011)
 
    Partition Maps 
 
-   under revision for JCGS
+   JCGS 20(4), 1007-1028 
 }
 \author{
 Nicolai Meinshausen <meinshausen@stats.ox.ac.uk>

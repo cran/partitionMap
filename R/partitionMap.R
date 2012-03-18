@@ -81,22 +81,21 @@ function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plot
         simloop <- simloop+1
         B <- SAMPLESY %*% t(SAMPLESY)
         DCURR <- outer(diag(B),rep(1,nY)) + outer(rep(1,nY),diag(B)) -2* B
-        grad1 <- numeric(nY)
-        grad2 <- numeric(nY)
+        grad <- matrix(nrow=nY,ncol=dimen)
+        grade <- numeric(dimen)
         
         for (i in 1:nY){
-          grad1e <- sum(DIST[i,]/pmax(eps,DCURR[i,])^2*2* (SAMPLESY[i,1] - SAMPLESY[,1]))
-          grad2e <- sum(DIST[i,]/pmax(eps,DCURR[i,])^2*2* (SAMPLESY[i,2] - SAMPLESY[,2]))
+          for (dimc in 1:dimen){
+            grade[dimc] <- sum(DIST[i,]/pmax(eps,DCURR[i,])^2*2* (SAMPLESY[i,dimc] - SAMPLESY[,dimc]))
+          }
           
-          grad01 <- (SAMPLESY0[i,1]-SAMPLESY[i,1])
-          grad02 <- (SAMPLESY0[i,2]-SAMPLESY[i,2])
+          grad0 <- (SAMPLESY0[i,1:dimen]-SAMPLESY[i,1:dimen])
           
-          grad1[i] <- grad1e + grad01
-          grad2[i] <- grad2e + grad02
+          grad[i,] <- grade + grad0
           
         }
-        l2 <- sqrt(sum(grad1^2)+sum(grad2^2))
-        SAMPLESY <- SAMPLESY + 1/(1+simloop/(nsimloop)) *0.1* cbind(grad1,grad2)/(0.00001+l2)
+        l2 <- sqrt(sum(apply(grad^2,1,sum)))
+        SAMPLESY <- SAMPLESY + 1/(1+simloop/(nsimloop)) *0.1* grad/(0.00001+l2)
         
         B <- SAMPLESY %*% t(SAMPLESY)
         DCURR <- outer(diag(B),rep(1,nY)) + outer(rep(1,nY),diag(B)) -2* B
@@ -137,11 +136,11 @@ function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plot
   
   if(plottrain){
     par(mfrow=c(1,2 +as.numeric(!is.null(XTEST))))
-    plot(ret$Samples + addjitter*sd(ret$Samples)*matrix(rnorm(dimen*length(Y)),ncol=dimen)   ,col=Y,pch=20,cex=1.5,main="Training Data",
+    plot(ret$Samples + addjitter*sd(as.vector(ret$Samples))*matrix(rnorm(dimen*length(Y)),ncol=dimen)   ,col=Y,pch=20,cex=1.5,main="Training Data",
          xlab="Dimension 1",ylab="Dimension 2")
     points(ret$Rules,pch=".")
     if(!is.null(XTEST)){
-      plot(ret$Samplestest +  addjitter*sd(ret$Samplestest)*matrix(rnorm(dimen*nrow(XTEST)),ncol=dimen) ,col=if(!is.null(YTEST)) YTEST else "darkgrey",pch=20,cex=1.5,main="Test Data", xlab="Dimension 1",ylab="Dimension 2")
+      plot(ret$Samplestest +  addjitter*sd(as.vector(ret$Samplestest))*matrix(rnorm(dimen*nrow(XTEST)),ncol=dimen) ,col=if(!is.null(YTEST)) YTEST else "darkgrey",pch=20,cex=1.5,main="Test Data", xlab="Dimension 1",ylab="Dimension 2")
       points(ret$Rules,pch=".")
     }
     plot(ret$Samples,col=Y,pch=20,cex=1.5,xlab="",ylab="",type="n",axes=FALSE)

@@ -1,8 +1,8 @@
 Package: partitionMap
 Type: Package
 Title: Partition Maps
-Version: 0.2
-Date: 2010-11-29
+Version: 0.4
+Date: 2012-03-18
 Author: Nicolai Meinshausen
 Maintainer: Nicolai Meinshausen <meinshausen@stats.ox.ac.uk>
 Depends: randomForest
@@ -12,6 +12,6 @@ Description: Low-dimensional embedding, using Random Forests for
 License: GPL
 LazyLoad: no
 URL: http://www.stats.ox.ac.uk/~meinshau
-Packaged: 2010-11-29 13:29:11 UTC; meinsn
+Packaged: 2012-03-20 10:57:23 UTC; meinsn
 Repository: CRAN
-Date/Publication: 2010-11-29 15:29:20
+Date/Publication: 2012-03-20 11:52:06
