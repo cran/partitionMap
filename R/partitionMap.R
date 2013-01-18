@@ -26,30 +26,36 @@ function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plot
   }
   Z <- cbind(rep(1,nrow(Z)),Z)
   
-  
+
   if(!is.null(XTEST)) ZTEST <- Z[-(1:n),]
   Z <- Z[1:n,]
   q <- ncol(Z)
   ZN <- sweep(Z,1,apply(Z,1,sum),FUN="/")
   
-   
 
   dias <- apply(Z,1,sum)
   diar <- apply(Z,2,sum)
+
   A2 <- sweep( sweep( Z,1,sqrt(dias),FUN="/") ,  2, sqrt(diar),FUN="/")
-  tr <- try(SAMPLES <- scale(diag(1/sqrt(dias)) %*% svd(A2,nu=1+3,nv=0)$u[,1+(1:3)]))
-  while(class(tr)=="try.error") tr <- try(SAMPLES <- scale(diag(1/sqrt(dias)) %*% svd(A2 + 0.0000000001*rnorm(1),nu=3,nv=0)$u[,1+(1:dimen)]))
+  cat("\n\n ******")
+
+  SAMPLES <- scale(diag(1/sqrt(dias)) %*% svd(A2 + matrix(0.01*rnorm(nrow(A2)*ncol(A2)),nrow=nrow(A2)),nu=3,nv=0)$u[,1+(1:dimen)])
+  cat("\n\n ******")
+
   SAMPLES <- SAMPLES[,1:dimen]
   RULES <- sweep(  t(Z), 1, apply(t(Z),1,sum), FUN="/") %*% SAMPLES
   SAMPLES <- sweep( Z,1,apply(Z,1,sum),FUN="/") %*% RULES
   if(!is.null(XTEST)) SAMPLESTEST <- sweep( ZTEST,1,apply(ZTEST,1,sum),FUN="/") %*% RULES
-  
+
+      cat("\n\n ******")
+
   sdvec <- apply(SAMPLES,2,sd)
   SAMPLES <- (SAMPLES)/max(sdvec)
   if(!is.null(XTEST)) SAMPLESTEST <- (SAMPLESTEST)/max(sdvec)
   RULES <- (RULES)/max(sdvec)
   
-  
+      cat("\n\n ******")
+
   if(method=="pm"){
     
     nsimloop <- 1000
@@ -65,7 +71,10 @@ function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plot
     }
     ds <- diag(ZS %*% t(ZS))
     ZS <- sweep(ZS,1,apply(ZS,1,sum),FUN="/")
-    
+
+    cat("\n\n ******")
+    cat("\n  start iterations... ")
+
     if(force){
       SAMPLESY0 <- matrix(0,nrow=nY,ncol=dimen)
       for (ii in 1:length(unique(Y))){
@@ -118,7 +127,7 @@ function(X,Y,XTEST=NULL,YTEST=NULL,method="pm",dimen=2,force=TRUE,ntree=100,plot
       RULES <- t( sweep(ZS,2,apply(ZS,2,sum),FUN="/") ) %*% SAMPLESY
     }
     
-    
+    cat("\n  end iterations... ")
     SAMPLESY <- SAMPLESY[,1:dimen]
     RULES <- RULES[,1:dimen]
     
